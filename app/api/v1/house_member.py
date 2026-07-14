@@ -7,7 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from app.db.deps import get_db
 from app.db.models import HouseMember, User
 from app.core.security import get_current_user
-from app.api.v1.schemas import HouseMemberCreate, HouseMemberRead, HouseMemberUpdate
+from app.api.v1.schemas import (
+    HouseMemberCreate,
+    HouseMemberRead,
+    HouseMemberUpdate,
+    HouseMemberUserRead,
+)
 from app.api.v1.utils import (
     get_user_or_404,
     get_house_member,
@@ -62,20 +67,26 @@ def create_house_member(
     return member
 
 
-@router.get("", response_model=list[HouseMemberRead])
+@router.get("", response_model=list[HouseMemberUserRead])
 def list_house_members(
     house_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[HouseMember]:
+) -> list[HouseMemberUserRead]:
     require_house_member(db, house_id, current_user.id)
-    return list(
-        db.scalars(
-            select(HouseMember)
-            .where(HouseMember.house_id == house_id)
-            .order_by(HouseMember.created_at.asc())
+    rows = db.execute(
+        select(User, HouseMember.role)
+        .join(HouseMember, HouseMember.user_id == User.id)
+        .where(HouseMember.house_id == house_id)
+        .order_by(HouseMember.created_at.asc())
+    ).all()
+    return [
+        HouseMemberUserRead(
+            user=user,
+            role=role,
         )
-    )
+        for user, role in rows
+    ]
 
 
 @router.get("/{member_id}", response_model=HouseMemberRead)
