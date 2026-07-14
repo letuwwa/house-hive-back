@@ -222,7 +222,7 @@ standard-no-fastapi-cloud-cli = [
 ]
 
 [[package]]
-name = "fastapi-template"
+name = "house-hive-back"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
