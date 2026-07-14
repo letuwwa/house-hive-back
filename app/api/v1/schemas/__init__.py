@@ -1,15 +1,19 @@
+from .user import UserRead, UserRegister
 from .house import HouseCreate, HouseRead, HouseUpdate
 from .token import AccessToken, AuthResponse, TokenPair
-from .user import UserRead, UserRegister
+from .house_member import HouseMemberCreate, HouseMemberRead, HouseMemberUpdate
 
 
 __all__ = [
     "UserRead",
     "TokenPair",
     "HouseRead",
-    "AccessToken",
-    "AuthResponse",
     "HouseCreate",
     "HouseUpdate",
+    "AccessToken",
+    "AuthResponse",
     "UserRegister",
+    "HouseMemberRead",
+    "HouseMemberCreate",
+    "HouseMemberUpdate",
 ]
