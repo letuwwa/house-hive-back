@@ -20,9 +20,7 @@ class ChoreStatus(str, enum.Enum):
 
 class Chore(BaseModel):
     __tablename__ = "chores"
-    __table_args__ = (
-        UniqueConstraint("id", "house_id", name="uq_chores_id_house"),
-    )
+    __table_args__ = (UniqueConstraint("id", "house_id", name="uq_chores_id_house"),)
 
     creator_id: Mapped[uuid.UUID] = mapped_column(
         "user_id",
