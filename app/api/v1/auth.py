@@ -1,9 +1,10 @@
-from datetime import datetime, timezone
 from typing import Annotated
+from datetime import datetime, timezone
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import APIRouter, Depends, Form, HTTPException, status
 
 from app.db.deps import get_db
@@ -12,14 +13,14 @@ from app.api.v1.schemas import AccessToken, AuthResponse, TokenPair
 from app.api.v1.schemas import UserRegister, UserRead
 from app.core.security import (
     decode_token,
-    hash_password,
-    verify_password,
-    get_current_user,
-    get_token_user,
-    create_access_token,
-    create_refresh_token,
     oauth2_scheme,
     require_admin,
+    hash_password,
+    get_token_user,
+    verify_password,
+    get_current_user,
+    create_access_token,
+    create_refresh_token,
 )
 
 
@@ -90,31 +91,21 @@ def login_user(
     form_data: LoginForm = Depends(),
     db: Session = Depends(get_db),
 ) -> dict[str, User | TokenPair]:
-    user = db.scalar(
-        select(User).where(
-            or_(
-                User.email == form_data.username,
-                User.username == form_data.username,
-            )
-        )
-    )
-    if user is None or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user",
-        )
+    user = _authenticate_user(db, form_data.username, form_data.password)
 
     return {
         "user": user,
         "tokens": _create_token_pair(user),
     }
+
+
+@router.post("/token", response_model=TokenPair)
+def create_swagger_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+) -> TokenPair:
+    user = _authenticate_user(db, form_data.username, form_data.password)
+    return _create_token_pair(user)
 
 
 @router.post("/refresh", response_model=AccessToken)
@@ -181,3 +172,28 @@ def _create_token_pair(user: User) -> TokenPair:
         access_token=create_access_token(user),
         refresh_token=create_refresh_token(user),
     )
+
+
+def _authenticate_user(db: Session, username: str, password: str) -> User:
+    user = db.scalar(
+        select(User).where(
+            or_(
+                User.email == username,
+                User.username == username,
+            )
+        )
+    )
+    if user is None or not verify_password(password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user",
+        )
+
+    return user
