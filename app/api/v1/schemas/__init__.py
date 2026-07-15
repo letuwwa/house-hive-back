@@ -1,3 +1,5 @@
+from .chore import ChoreCreate, ChoreRead, ChoreUpdate
+from .chore_completion import ChoreCompletionCreate, ChoreCompletionRead
 from .event import EventCreate, EventRead, EventUpdate
 from .user import UserRead, UserRegister
 from .house import HouseCreate, HouseRead, HouseUpdate
@@ -18,6 +20,11 @@ __all__ = [
     "HouseUpdate",
     "AccessToken",
     "AuthResponse",
+    "ChoreCompletionCreate",
+    "ChoreCompletionRead",
+    "ChoreCreate",
+    "ChoreRead",
+    "ChoreUpdate",
     "EventCreate",
     "EventRead",
     "EventUpdate",
