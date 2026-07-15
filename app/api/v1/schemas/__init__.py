@@ -1,3 +1,4 @@
+from .event import EventCreate, EventRead, EventUpdate
 from .user import UserRead, UserRegister
 from .house import HouseCreate, HouseRead, HouseUpdate
 from .token import AccessToken, AuthResponse, TokenPair
@@ -17,6 +18,9 @@ __all__ = [
     "HouseUpdate",
     "AccessToken",
     "AuthResponse",
+    "EventCreate",
+    "EventRead",
+    "EventUpdate",
     "UserRegister",
     "HouseMemberRead",
     "HouseMemberCreate",

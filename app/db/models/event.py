@@ -28,7 +28,8 @@ class Event(BaseModel):
         ),
     )
 
-    member_id: Mapped[uuid.UUID] = mapped_column(
+    creator_id: Mapped[uuid.UUID] = mapped_column(
+        "member_id",
         Uuid,
         nullable=False,
     )
