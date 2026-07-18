@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.db.deps import get_db
-from app.db.models import HouseMember, User
+from app.db.models import Expense, ExpenseShare, HouseMember, Settlement, User
 from app.core.security import get_current_user
 from app.api.v1.schemas import (
     HouseMemberCreate,
@@ -25,6 +25,30 @@ from app.api.v1.utils import (
 
 
 router = APIRouter(prefix="/house-members", tags=["house-members"])
+
+
+def _member_has_financial_history(db: Session, member_id: UUID) -> bool:
+    paid_expense_exists = db.scalar(
+        select(Expense.id).where(Expense.paid_by_member_id == member_id).limit(1)
+    )
+    if paid_expense_exists is not None:
+        return True
+
+    expense_share_exists = db.scalar(
+        select(ExpenseShare.id).where(ExpenseShare.member_id == member_id).limit(1)
+    )
+    if expense_share_exists is not None:
+        return True
+
+    settlement_exists = db.scalar(
+        select(Settlement.id)
+        .where(
+            (Settlement.from_member_id == member_id)
+            | (Settlement.to_member_id == member_id)
+        )
+        .limit(1)
+    )
+    return settlement_exists is not None
 
 
 @router.post(
@@ -128,6 +152,12 @@ def delete_house_member(
         require_house_admin(db, member.house_id, current_user.id)
 
     prevent_removing_last_admin(db, member)
+    if _member_has_financial_history(db, member_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete house member with financial history",
+        )
+
     db.delete(member)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

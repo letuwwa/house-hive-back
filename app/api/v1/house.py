@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.db.deps import get_db
 from app.core.security import get_current_user
-from app.db.models import House, HouseMember, HouseMemberRole, User
+from app.db.models import Expense, House, HouseMember, HouseMemberRole, Settlement, User
 from app.api.v1.schemas import HouseCreate, HouseMemberRead, HouseRead, HouseUpdate
 from app.api.v1.utils import (
     get_house_member,
@@ -17,6 +17,19 @@ from app.api.v1.utils import (
 
 
 router = APIRouter(prefix="/houses", tags=["houses"])
+
+
+def _house_has_financial_history(db: Session, house_id: UUID) -> bool:
+    expense_exists = db.scalar(
+        select(Expense.id).where(Expense.house_id == house_id).limit(1)
+    )
+    if expense_exists is not None:
+        return True
+
+    settlement_exists = db.scalar(
+        select(Settlement.id).where(Settlement.house_id == house_id).limit(1)
+    )
+    return settlement_exists is not None
 
 
 @router.post(
@@ -117,6 +130,12 @@ def delete_house(
 ) -> Response:
     require_house_admin(db, house_id, current_user.id)
     house = get_house_or_404(db, house_id)
+    if _house_has_financial_history(db, house_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete house with financial history",
+        )
+
     db.execute(delete(HouseMember).where(HouseMember.house_id == house_id))
     db.delete(house)
     db.commit()
