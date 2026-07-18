@@ -38,7 +38,7 @@ class Expense(BaseModel):
         String(100),
         nullable=False,
     )
-    description: Mapped[str] = mapped_column(
+    description: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
