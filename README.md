@@ -1,8 +1,9 @@
 # House Hive API
 
 Backend API for the House Hive application. It provides authentication,
-house management, house membership, chores, events, and token revocation
-support using FastAPI, PostgreSQL, SQLAlchemy, Alembic, and JWT auth.
+house management, house membership, chores, events, shared expense splitting,
+settlements, and token revocation support using FastAPI, PostgreSQL,
+SQLAlchemy, Alembic, and JWT auth.
 
 ## Requirements
 
@@ -134,6 +135,76 @@ PATCH  /api/v1/house-members/{member_id}      Update a member role as admin
 DELETE /api/v1/house-members/{member_id}      Remove a membership
 ```
 
+Expenses:
+```text
+POST   /api/v1/houses/{house_id}/expenses               Create an equal-split expense
+GET    /api/v1/houses/{house_id}/expenses               List house expenses
+GET    /api/v1/houses/{house_id}/expenses/{expense_id}  Read one expense
+DELETE /api/v1/houses/{house_id}/expenses/{expense_id}  Delete an expense as payer/admin
+GET    /api/v1/houses/{house_id}/balances               List member net balances
+GET    /api/v1/houses/{house_id}/debts                  List suggested repayments
+POST   /api/v1/houses/{house_id}/settlements            Record a repayment
+GET    /api/v1/houses/{house_id}/settlements            List repayments
+```
+
+Create an expense split between all current house members:
+```bash
+curl -X POST http://localhost:8000/api/v1/houses/<house-id>/expenses \
+  -H "Authorization: Bearer <jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Internet bill",
+    "description": "July",
+    "amount_cents": 12000
+  }'
+```
+
+Create an expense split between selected members:
+```bash
+curl -X POST http://localhost:8000/api/v1/houses/<house-id>/expenses \
+  -H "Authorization: Bearer <jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Dinner",
+    "amount_cents": 6000,
+    "participant_member_ids": [
+      "<member-id-1>",
+      "<member-id-2>"
+    ]
+  }'
+```
+
+The payer is derived from the authenticated user's house membership. Clients do
+not send `paid_by_member_id` when creating an expense.
+
+Suggested debts include member IDs and usernames:
+```json
+[
+  {
+    "from_member_id": "bob-member-id",
+    "from_username": "bob",
+    "to_member_id": "alice-member-id",
+    "to_username": "alice",
+    "amount_cents": 3000
+  }
+]
+```
+
+Record a settlement:
+```bash
+curl -X POST http://localhost:8000/api/v1/houses/<house-id>/settlements \
+  -H "Authorization: Bearer <jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from_member_id": "<debtor-member-id>",
+    "to_member_id": "<creditor-member-id>",
+    "amount_cents": 3000,
+    "note": "cash"
+  }'
+```
+
+For more detail, see `expenses_guide.txt`.
+
 ## Data Model
 
 Core models:
@@ -145,6 +216,9 @@ Core models:
 - `Event`: scheduled house event created by a house member.
 - `Chore`: house task created by a user.
 - `ChoreCompletion`: records a user completing a chore.
+- `Expense`: shared purchase or bill paid by a house member.
+- `ExpenseShare`: one member's owed share of an expense.
+- `Settlement`: repayment from one house member to another.
 - `TokenBlocklist`: revoked access or refresh tokens.
 
 ## Quality
