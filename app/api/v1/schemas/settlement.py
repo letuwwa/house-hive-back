@@ -17,7 +17,9 @@ class SettlementRead(BaseModel):
     id: UUID
     house_id: UUID
     from_member_id: UUID
+    from_username: str
     to_member_id: UUID
+    to_username: str
     amount_cents: int
     note: str | None
     settled_at: datetime

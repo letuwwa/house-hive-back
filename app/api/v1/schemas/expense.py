@@ -15,6 +15,7 @@ class ExpenseShareRead(BaseModel):
     expense_id: UUID
     house_id: UUID
     member_id: UUID
+    username: str
     amount_cents: int
 
 
@@ -40,6 +41,7 @@ class ExpenseRead(BaseModel):
     id: UUID
     house_id: UUID
     paid_by_member_id: UUID
+    paid_by_username: str
     title: str
     description: str | None
     amount_cents: int
@@ -50,6 +52,7 @@ class ExpenseRead(BaseModel):
 
 class HouseMemberBalanceRead(BaseModel):
     member_id: UUID
+    username: str
     balance_cents: int
 
 

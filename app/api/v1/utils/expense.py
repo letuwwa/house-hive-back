@@ -75,17 +75,41 @@ def split_amount_equally(amount_cents: int, member_ids: list[UUID]) -> dict[UUID
     }
 
 
-def build_expense_read(expense: Expense, shares: list[ExpenseShare]) -> ExpenseRead:
+def get_usernames_by_member_id(db: Session, house_id: UUID) -> dict[UUID, str]:
+    return dict(
+        db.execute(
+            select(HouseMember.id, User.username)
+            .join(User, User.id == HouseMember.user_id)
+            .where(HouseMember.house_id == house_id)
+        ).all()
+    )
+
+
+def build_expense_read(
+    db: Session, expense: Expense, shares: list[ExpenseShare]
+) -> ExpenseRead:
+    usernames_by_member_id = get_usernames_by_member_id(db, expense.house_id)
     return ExpenseRead(
         id=expense.id,
         house_id=expense.house_id,
         paid_by_member_id=expense.paid_by_member_id,
+        paid_by_username=usernames_by_member_id[expense.paid_by_member_id],
         title=expense.title,
         description=expense.description,
         amount_cents=expense.amount_cents,
         created_at=expense.created_at,
         updated_at=expense.updated_at,
-        shares=[ExpenseShareRead.model_validate(share) for share in shares],
+        shares=[
+            ExpenseShareRead(
+                id=share.id,
+                expense_id=share.expense_id,
+                house_id=share.house_id,
+                member_id=share.member_id,
+                username=usernames_by_member_id[share.member_id],
+                amount_cents=share.amount_cents,
+            )
+            for share in shares
+        ],
     )
 
 
@@ -102,14 +126,17 @@ def get_expense_shares(db: Session, expense_id: UUID) -> list[ExpenseShare]:
 def calculate_house_balances(
     db: Session, house_id: UUID
 ) -> list[HouseMemberBalanceRead]:
-    member_ids = list(
-        db.scalars(
-            select(HouseMember.id)
-            .where(HouseMember.house_id == house_id)
-            .order_by(HouseMember.created_at.asc())
-        )
+    member_rows = db.execute(
+        select(HouseMember.id, User.username)
+        .join(User, User.id == HouseMember.user_id)
+        .where(HouseMember.house_id == house_id)
+        .order_by(HouseMember.created_at.asc())
+    ).all()
+    usernames_by_member_id = dict(member_rows)
+    balances = dict.fromkeys(
+        [member_id for member_id, _username in member_rows],
+        0,
     )
-    balances = dict.fromkeys(member_ids, 0)
 
     paid_rows = db.execute(
         select(
@@ -154,20 +181,20 @@ def calculate_house_balances(
         balances[member_id] -= int(total_received)
 
     return [
-        HouseMemberBalanceRead(member_id=member_id, balance_cents=balance)
+        HouseMemberBalanceRead(
+            member_id=member_id,
+            username=usernames_by_member_id[member_id],
+            balance_cents=balance,
+        )
         for member_id, balance in balances.items()
     ]
 
 
 def calculate_house_debts(db: Session, house_id: UUID) -> list[HouseDebtRead]:
     balances = calculate_house_balances(db, house_id)
-    usernames_by_member_id = dict(
-        db.execute(
-            select(HouseMember.id, User.username)
-            .join(User, User.id == HouseMember.user_id)
-            .where(HouseMember.house_id == house_id)
-        ).all()
-    )
+    usernames_by_member_id = {
+        balance.member_id: balance.username for balance in balances
+    }
     debtors = [
         [balance.member_id, -balance.balance_cents]
         for balance in balances

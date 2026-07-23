@@ -84,7 +84,7 @@ def create_expense(
         ) from exc
 
     db.refresh(expense)
-    return build_expense_read(expense, get_expense_shares(db, expense.id))
+    return build_expense_read(db, expense, get_expense_shares(db, expense.id))
 
 
 @router.get("", response_model=list[ExpenseRead])
@@ -105,7 +105,7 @@ def list_expenses(
         expense.id: get_expense_shares(db, expense.id) for expense in expenses
     }
     return [
-        build_expense_read(expense, shares_by_expense_id[expense.id])
+        build_expense_read(db, expense, shares_by_expense_id[expense.id])
         for expense in expenses
     ]
 
@@ -124,7 +124,7 @@ def read_expense(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Expense not found",
         )
-    return build_expense_read(expense, get_expense_shares(db, expense.id))
+    return build_expense_read(db, expense, get_expense_shares(db, expense.id))
 
 
 @router.delete("/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
